@@ -74,6 +74,8 @@ function panier(data, userData) {
     color.textContent = userData.color
     price.textContent = data.price
     input.value = userData.quantity
+    article.dataset.id = userData.id
+    article.dataset.color = userData.color
 
     //implémantation des articles dans le DOM
     const cartItems = document.getElementById('cart__items');
@@ -133,9 +135,10 @@ setTimeout(() => {
     totalPrice.textContent = totalPrix
 }, 1000)
 
+
 //fonction pour ajouter un produit via l'input quantité du panier
 function addQuantity(event, ancienProduit) {
-    let monPanier = JSON.parse(localStorage.getItem('products')); // on récupère lelocal storage
+    let monPanier = JSON.parse(localStorage.getItem('products')); // on récupère le local storage
     let newProduit = monPanier.find(function (produit) {// ça c'est le produit du panier sur lequel on interagit.
         if (ancienProduit.id == produit.id && ancienProduit.color == produit.color) {
             return produit
@@ -146,7 +149,12 @@ function addQuantity(event, ancienProduit) {
         quantity: event.target.value //la valeur de l'input avec lequel on interagit.
     }
     monPanier[monPanier.indexOf(newProduit)] = newCanape; //on récupère l'index du produit qui est dans le panier (ce qu'il y a dans les crochet) et on le remplace par newCanape
-    localStorage.setItem('products', JSON.stringify(monPanier)) //on ré enregistre le panier dnas le localStorage
+    localStorage.setItem('products', JSON.stringify(monPanier)) //on ré enregistre le panier dans le localStorage
+
+    // Si la quantité est inférieur à 1 message d'alerte
+    if (event.target.value < 1) {
+       alert("La quantité ne peut être inférieur à 1. Si vous ne souhaitez plus cet article, vous pouvez le supprimer") 
+    }
     totalPrix = 0;
     totalQuantity = 0;
     monPanier.forEach(async element => {
@@ -168,12 +176,14 @@ function deleteProduct(product, article) {
         if (product.id == produit.id && product.color == produit.color) {
             return produit
         }
-    })
-    monPanier.splice([monPanier.indexOf(choiceProduct)], 1);
-    localStorage.setItem('products', JSON.stringify(monPanier))
-
-    article.remove()
-
+    }) 
+    if (confirm("Attention, votre produit va être supprimé de votre panier ! Voulez-vous continuer?")) {
+        monPanier.splice([monPanier.indexOf(choiceProduct)], 1);
+        localStorage.setItem('products', JSON.stringify(monPanier))
+        /* var test = Array.from(document.getElementsByTagName("article")).find(element => element.dataset.id === choiceProduct.id && element.dataset.color === choiceProduct.color)
+        test.remove() */
+        article.remove()
+    }
     totalPrix = 0;
     totalQuantity = 0;
     monPanier.forEach(async element => {
@@ -196,8 +206,8 @@ var city = false;
 var mail = false;
 
 //regex qui permet de controler si le nom et prénom contiennent majuscule + minuscule + tiret et contient entre 2 et 40 caractères
-var regFirstName = /[a-zA-Z\-']{2,20}/g
-var regName = /[a-zA-Z\-']{2,20}/g
+var regFirstName = /([A-Z]|[a-z]|-){2,}\w/g
+var regName = /[a-zA-Z-']{2,20}\w/g
 // regex qui permet de controler l'adresse avec les chiffres et le nom de la rue
 var regAddress = new RegExp("[0-9]{0,3}[\sa-zA-Z\-']{2,}")
 //regex pour controler la ville, ckeck les minuscules, majuscules, tiret et apostrophe
@@ -207,8 +217,9 @@ var regMail = new RegExp("[a-z0-9\-_]+[a-z0-9\.\-_]*@[a-z0-9\-_]{2,}\.[a-z\.\-_]
 
 // ensemble de fonction permettant de vérifier les inputs avec les regex pour ensuite les stocker
 var prenom = document.getElementById('firstName');
+
 prenom.addEventListener('change', function (event) {
-    if (regFirstName.test(event.target.value) == false) {
+    if (regFirstName.test(event.target.value) == false || prenom.value == "") {
         var nameError = document.getElementById('firstNameErrorMsg');
         nameError.textContent = "Erreur : Veillez vérifier les données que vous avez entré"
         event.preventDefault();
@@ -262,43 +273,65 @@ email.addEventListener('change', function (event) {
 
 })
 
-//fonctions pour enregistré et envoyé les données au click lors de l'envoi du formulaire
-
 //fonction pour récupéré les id des produits du paniers, pour les envoyé par la suite dans le tableau, lors de l'envoi post
 function validPanier(e) {
-    e.preventDefault()
-    paniers.forEach(produit => {
-        ProduitsID.push(produit.id)
-    })
-    //requete API pour envoyé les données afin d'avoir le bon de commande
-    fetch("http://localhost:3000/api/products/order", {
-        method: "POST",
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(
-            {
-                contact: {
-                    firstName: prenom.value,
-                    lastName: nom.value,
-                    address: adresse.value,
-                    city: ville.value,
-                    email: email.value
-                },
-                products: ProduitsID
-            }
-        )
-    })
-        .then(function (res) {
-            if (res.ok) {
-                return res.json();
-            }
+    if (firstName && lastName && address && city && mail) {
+        e.preventDefault()
+        paniers.forEach(produit => {
+            ProduitsID.push(produit.id)
         })
-        .then(json => {
-            alert("Merci pour votre achat")
-            localStorage.removeItem("products")
-            window.location.href = `./confirmation.html?orderID=${json.orderId}`
+        //requete API pour envoyé les données afin d'avoir le bon de commande
+        fetch("http://localhost:3000/api/products/order", {
+            method: "POST",
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(
+                {
+                    contact: {
+                        firstName: prenom.value,
+                        lastName: nom.value,
+                        address: adresse.value,
+                        city: ville.value,
+                        email: email.value
+                    },
+                    products: ProduitsID
+                }
+            )
         })
+            .then(function (res) {
+                if (res.ok) {
+                    return res.json();
+                }
+            })
+            .then(json => {
+                localStorage.removeItem("products")
+                window.location.href = `./confirmation.html?orderID=${json.orderId}`
+                alert("Merci de votre achat")
+            })
+    }
+    else {
+        if (!firstName) {
+            var nameError = document.getElementById('firstNameErrorMsg');
+            nameError.textContent = "Erreur : Veillez vérifier les données que vous avez entré"
+        }
+        if (!lastName) {
+            var lastError = document.getElementById('lastNameErrorMsg');
+            lastError.textContent = "Erreur : Veillez vérifier les données que vous avez entré"
+        }
+        if(!address){
+            var adresseError = document.getElementById('addressErrorMsg');
+        adresseError.textContent = "Erreur : Veillez vérifier les données que vous avez entré"
+        }
+        if(!city){
+            var cityError = document.getElementById('cityErrorMsg');
+            cityError.textContent = "Erreur : Veillez vérifier les données que vous avez entré" 
+        }
+        if(!mail){
+            var mailError = document.getElementById('emailErrorMsg');
+            mailError.textContent = "Erreur : Votre adresse mail est invalide" 
+        }
+    }
 }
 
 const order = document.getElementById("order");
